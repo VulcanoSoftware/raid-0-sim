@@ -46,18 +46,17 @@ def lees_config(config_path=conf_pad):
     else:
         return None
 
-def controleer_bestanden_en_verplaats(src, disk1, disk2):
+def controleer_bestanden_en_verplaats(src, disk1, disk2, laatste_schijf):
+    # Initialiseer nieuwe_laatste_schijf met de huidige laatste_schijf
+    nieuwe_laatste_schijf = laatste_schijf
+    
     # Verkrijg de lijst van bestanden in de bronmap
     files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
 
-    # De tijdsduur waarvoor een bestand niet gewijzigd mag zijn
     tijd_limiet = timedelta(hours=12)
     huidige_tijd = datetime.now()
-
-    # Lijst van bestanden die langer dan 12 uur niet gewijzigd zijn
     bestanden_om_te_verplaatsen = []
 
-    # Verzamelen van bestanden die voldoen aan de tijdscontrole
     for file in files:
         source_path = os.path.join(src, file)
         wijziging_datum = laatst_gewijzigd(source_path)
@@ -67,46 +66,39 @@ def controleer_bestanden_en_verplaats(src, disk1, disk2):
         else:
             print(f"{file} is te recent gewijzigd en wordt niet verplaatst.")
 
-    # Verdeel de bestanden in twee groepen
-    disk1_files = []
-    disk2_files = []
-
-    # Bereken de benodigde ruimte voor elk bestand
+    # Verplaats bestanden direct, beginnend met de tegenovergestelde schijf van laatste_schijf
+    print("\nStart met verplaatsen van bestanden:")
     for file in bestanden_om_te_verplaatsen:
         source_path = os.path.join(src, file)
-        file_size_gb = bestand_grootte(source_path) // (2**30)  # Bestandsgrootte in GB
-        required_space = file_size_gb + 5  # Voeg 5 GB toe aan de bestandsgrootte
-        
-        # Print de bestandsgrootte en de vereiste ruimte
-        print(f"Bestand: {file}, Grootte: {file_size_gb} GB, Vereiste ruimte: {required_space} GB")
-        
-        # Controleer of er voldoende ruimte is op de schijven en verdeel de bestanden
-        if voldoende_vrije_ruimte(disk1, required_space):
-            disk1_files.append(file)
-        elif voldoende_vrije_ruimte(disk2, required_space):
-            disk2_files.append(file)
-        else:
-            print(f"Niet genoeg ruimte voor {file} op beide schijven.")
-    
-    # Verplaats de bestanden naar de respectieve schijven
-    print("\nStart met verplaatsen van bestanden:")
-    for file in disk1_files:
-        source_path = os.path.join(src, file)
-        destination_path = os.path.join(disk1, file)
-        required_space = bestand_grootte(source_path) // (2**30) + 5
-        print(f"Verplaatsing van {file} naar {disk1}, Vereiste ruimte: {required_space} GB")
-        shutil.move(source_path, destination_path)
-        print(f"{file} verplaatst naar {disk1}")
+        file_size_gb = bestand_grootte(source_path) // (2**30)
+        required_space = file_size_gb + 5
 
-    for file in disk2_files:
-        source_path = os.path.join(src, file)
-        destination_path = os.path.join(disk2, file)
-        required_space = bestand_grootte(source_path) // (2**30) + 5
-        print(f"Verplaatsing van {file} naar {disk2}, Vereiste ruimte: {required_space} GB")
-        shutil.move(source_path, destination_path)
-        print(f"{file} verplaatst naar {disk2}")
+        # Kies de andere schijf dan de laatste keer
+        if nieuwe_laatste_schijf == 'disk1':
+            target_disk = disk2
+            target_disk_name = 'disk2'
+        else:
+            target_disk = disk1
+            target_disk_name = 'disk1'
+        
+        print(f"Bestand: {file}, Grootte: {file_size_gb} GB, Vereiste ruimte: {required_space} GB")
+        print(f"Poging tot verplaatsen naar {target_disk_name}")
+
+        if voldoende_vrije_ruimte(target_disk, required_space):
+            destination_path = os.path.join(target_disk, file)
+            shutil.move(source_path, destination_path)
+            print(f"{file} verplaatst naar {target_disk}")
+            # Update laatste_schijf voor het volgende bestand
+            nieuwe_laatste_schijf = target_disk_name
+            # Update config met nieuwe laatste_schijf
+            config = lees_config()
+            config['laatste_schijf'] = nieuwe_laatste_schijf
+            sla_config_op(config)
+        else:
+            print(f"Niet genoeg ruimte voor {file} op {target_disk_name}, bestand wordt overgeslagen.")
 
     print("\nVerplaatsing van bestanden is voltooid!")
+    return nieuwe_laatste_schijf
 
 # Probeer de configuratie te laden, anders vraag om input
 config = lees_config()
@@ -116,17 +108,20 @@ if config:
     src = config.get('src', '') or input("Geef het pad naar de input map: ")
     disk1 = config.get('disk1', '') or input("Geef het pad naar disk 1: ")
     disk2 = config.get('disk2', '') or input("Geef het pad naar disk 2: ")
+    laatste_schijf = config.get('laatste_schijf', 'disk1')  # Standaard disk1
 else:
     # Vraag om input als er geen config bestand is
     src = input("Geef het pad naar de input map: ")
     disk1 = input("Geef het pad naar disk 1: ")
     disk2 = input("Geef het pad naar disk 2: ")
+    laatste_schijf = 'disk1'  # Begin met disk1
 
 # Sla de instellingen op in config.yml
 sla_config_op({
     'src': src,
     'disk1': disk1,
-    'disk2': disk2
+    'disk2': disk2,
+    'laatste_schijf': laatste_schijf
 })
 
 # Controleer of de opgegeven mappen bestaan
@@ -141,6 +136,6 @@ for disk in [disk1, disk2]:
 # Zorg ervoor dat het programma altijd blijft draaien en elke 10 seconden de inhoud controleert
 while True:
     print("======================================================")
-    controleer_bestanden_en_verplaats(src, disk1, disk2)
+    laatste_schijf = controleer_bestanden_en_verplaats(src, disk1, disk2, laatste_schijf)
     print("======================================================")
     time.sleep(10)  # Wacht 10 seconden voor de volgende controle
