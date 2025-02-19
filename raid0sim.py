@@ -124,30 +124,38 @@ sla_config_op({
     'webhook_url': webhook_url
 })
 
-if not os.path.exists(src):
-    print_en_discord(f"De bronmap {src} bestaat niet.", webhook_url)
-    exit()
-for disk in [disk1, disk2]:
-    if not os.path.exists(disk):
-        print_en_discord(f"De map {disk} bestaat niet. Ik maak de map aan.", webhook_url)
-        os.makedirs(disk)
-
-print_en_discord(f"\nScript gestart met de volgende configuratie:", webhook_url)
-print_en_discord(f"Bronmap: {src}", webhook_url)
-print_en_discord(f"Schijf 1: {disk1}", webhook_url)
-print_en_discord(f"Schijf 2: {disk2}", webhook_url)
-print_en_discord(f"Laatste gebruikte schijf: {laatste_schijf}", webhook_url)
-
-laatste_clear = datetime.now()
 while True:
-    huidige_tijd = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print_en_discord("======================================================", webhook_url)
-    laatste_schijf = controleer_bestanden_en_verplaats(src, disk1, disk2, laatste_schijf)
-    print_en_discord("======================================================", webhook_url)
-    
-    if datetime.now() - laatste_clear > timedelta(hours=6):
-        os.system('cls' if os.name == 'nt' else 'clear')
+    try:
+        if not os.path.exists(src):
+            print_en_discord(f"De bronmap {src} bestaat niet.", webhook_url)
+            input("Druk op Enter om opnieuw te proberen...")
+            continue
+            
+        for disk in [disk1, disk2]:
+            if not os.path.exists(disk):
+                print_en_discord(f"De map {disk} bestaat niet. Ik maak de map aan.", webhook_url)
+                os.makedirs(disk)
+
+        print_en_discord(f"\nScript gestart met de volgende configuratie:", webhook_url)
+        print_en_discord(f"Bronmap: {src}", webhook_url)
+        print_en_discord(f"Schijf 1: {disk1}", webhook_url)
+        print_en_discord(f"Schijf 2: {disk2}", webhook_url)
+        print_en_discord(f"Laatste gebruikte schijf: {laatste_schijf}", webhook_url)
+
         laatste_clear = datetime.now()
-        print_en_discord("Console is gewist", webhook_url)
-    
-    time.sleep(120) 
+        while True:
+            huidige_tijd = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print_en_discord("======================================================", webhook_url)
+            laatste_schijf = controleer_bestanden_en_verplaats(src, disk1, disk2, laatste_schijf)
+            print_en_discord("======================================================", webhook_url)
+            
+            if datetime.now() - laatste_clear > timedelta(hours=6):
+                os.system('cls' if os.name == 'nt' else 'clear')
+                laatste_clear = datetime.now()
+                print_en_discord("Console is gewist", webhook_url)
+            
+            time.sleep(120)
+            
+    except Exception as e:
+        print_en_discord(f"Er is een fout opgetreden: {str(e)}", webhook_url)
+        input("Druk op Enter om het programma opnieuw te starten...") 
