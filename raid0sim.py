@@ -68,7 +68,7 @@ def controleer_bestanden_en_verplaats(src, schijven, laatste_schijf, webhook_url
     nieuwe_laatste_schijf = laatste_schijf
     files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
 
-    tijd_limiet = timedelta(hours=12)
+    tijd_limiet = timedelta(hours=4)
     huidige_tijd = datetime.now()
     bestanden_om_te_verplaatsen = []
 
@@ -194,3 +194,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
